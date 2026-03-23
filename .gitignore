@@ -3,3 +3,4 @@ data/
 *.zip
 *.tar.gz
 __pycache__/.DS_Store
+__pycache__

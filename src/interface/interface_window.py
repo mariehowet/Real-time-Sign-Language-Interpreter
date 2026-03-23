@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from interface_core import (
+	WEBCAM_MIRROR,
 	CLASS_NAMES,
 	CONFIDENCE_THRESHOLD,
 	INPUT_SIZE,
@@ -140,6 +141,9 @@ class MainWindow(QMainWindow):
 		if not success:
 			return
 
+		if WEBCAM_MIRROR:
+			frame = cv2.flip(frame, 1)
+
 		hand_data = get_hand_data(self._tracker, frame)
 		landmark_vector = prepare_landmarks(hand_data.get("landmarks"), INPUT_SIZE)
 		inference = predict_sign(
@@ -199,6 +203,5 @@ class MainWindow(QMainWindow):
 	def closeEvent(self, event: Any) -> None:
 		self._timer.stop()
 		self._capture.release()
-		if hasattr(self._tracker, "close"):
-			self._tracker.close()
+		self._tracker.close()
 		super().closeEvent(event)

@@ -1,0 +1,12 @@
+numpy
+opencv-python
+mediapipe
+
+torch
+torchvision
+
+PySide6
+
+matplotlib
+seaborn
+scikit-learn

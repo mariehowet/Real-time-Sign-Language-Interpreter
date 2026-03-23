@@ -20,6 +20,8 @@ MAX_FPS = 30
 WINDOW_NAME = "Sign Language Interpreter"
 SHOW_LANDMARKS = True
 SHOW_BOUNDING_BOX = True
+WEBCAM_MIRROR = True
+BBOX_MARGIN = 16
 SEQUENCE_MODE = False
 SEQUENCE_STABILITY_FRAMES = 8
 SEQUENCE_COOLDOWN_FRAMES = 6
@@ -92,43 +94,16 @@ class InterfaceState:
 		return "".join(self.current_sequence) or "-"
 
 
-def import_custom_tracker() -> Optional[Any]:
-	"""Import the team tracker implementation when available."""
-	try:
-		from hand_tracking import HandTracker  # type: ignore
+def import_custom_tracker() -> Any:
+	"""Import and instantiate the project hand tracker."""
+	from hand_tracking import HandTracker  # type: ignore
 
-		return HandTracker()
-	except ImportError:
-		print("Warning: hand_tracking.py unavailable. Running without tracking.")
-		return None
-
-
-def normalize_tracker_output(result: Any) -> Dict[str, Any]:
-	"""Adapt several tracker APIs to a common dictionary format."""
-	if result is None:
-		return {"landmarks": None, "bbox": None, "raw_landmarks": None}
-
-	if isinstance(result, dict):
-		return {
-			"landmarks": result.get("landmarks"),
-			"bbox": result.get("bbox"),
-			"raw_landmarks": result.get("raw_landmarks"),
-		}
-
-	if isinstance(result, np.ndarray):
-		return {"landmarks": result, "bbox": None, "raw_landmarks": None}
-
-	landmarks = getattr(result, "landmarks", None)
-	bbox = getattr(result, "bbox", None)
-	raw_landmarks = getattr(result, "raw_landmarks", None)
-	return {"landmarks": landmarks, "bbox": bbox, "raw_landmarks": raw_landmarks}
+	return HandTracker()
 
 
 def get_hand_data(tracker: Any, frame: np.ndarray) -> Dict[str, Any]:
 	"""Request hand data from the tracker."""
-	if tracker is None:
-		return {"landmarks": None, "bbox": None, "raw_landmarks": None}
-	return normalize_tracker_output(tracker.get_hand_data(frame))
+	return tracker.get_hand_data(frame)
 
 
 def build_model(input_size: int, num_classes: int) -> Optional[Any]:
@@ -230,20 +205,24 @@ def update_sequence_state(state: InterfaceState, inference: InferenceResult) -> 
 		state.reset_candidate()
 
 
-def draw_bbox(frame: np.ndarray, bbox: Tuple[int, int, int, int]) -> None:
+def draw_bbox(
+	frame: np.ndarray,
+	bbox: Tuple[int, int, int, int],
+	margin: int = BBOX_MARGIN,
+) -> None:
 	"""Draw the hand bounding box on a frame."""
+	height, width = frame.shape[:2]
 	x_min, y_min, x_max, y_max = bbox
-	cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+	padding = max(0, int(margin))
+
+	x_min_out = max(0, x_min - padding)
+	y_min_out = max(0, y_min - padding)
+	x_max_out = min(width - 1, x_max + padding)
+	y_max_out = min(height - 1, y_max + padding)
+
+	cv2.rectangle(frame, (x_min_out, y_min_out), (x_max_out, y_max_out), (0, 255, 0), 2)
 
 
 def draw_landmarks(frame: np.ndarray, tracker: Any, raw_landmarks: Any) -> None:
 	"""Render hand landmarks when available."""
-	if raw_landmarks is None:
-		return
-
-	drawing_utils = getattr(tracker, "_drawing_utils", None)
-	hand_connections = getattr(tracker, "hand_connections", None)
-	if drawing_utils is None or hand_connections is None:
-		return
-
-	drawing_utils.draw_landmarks(frame, raw_landmarks, hand_connections)
+	tracker.draw_landmarks(frame, raw_landmarks)
