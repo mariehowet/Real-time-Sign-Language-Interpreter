@@ -21,8 +21,6 @@ def run_interface() -> None:
 	"""Run the Qt webcam application."""
 	model_path = Path(__file__).with_name(MODEL_PATH)
 	tracker = import_custom_tracker()
-	if tracker is None:
-		print("Warning: UI started without tracker. Hand overlays/predictions require hand_tracking.py.")
 
 	model = load_model(model_path=model_path, input_size=INPUT_SIZE, class_names=CLASS_NAMES)
 	if model is None:

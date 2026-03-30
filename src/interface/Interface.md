@@ -1,54 +1,64 @@
 # Interface
 
-Ce document definit le contrat d'integration du module interface.
+Ce document decrit le contrat d'integration du module interface temps reel.
 
-## 1) Architecture choisie
+## 1) Architecture
 
-Le pipeline est:
+Pipeline execute a chaque frame:
 
-1. L'UI capture une frame camera.
-2. L'UI envoie la frame au module tracking.
-3. L'UI recupere les landmarks.
-4. L'UI envoie les landmarks au module modele.
-5. L'UI affiche prediction, confiance, overlays et sequence.
+1. L'UI capture une image webcam (`cv2.VideoCapture`).
+2. L'UI recupere les donnees main via `HandTracker.get_hand_data(frame)`.
+3. L'UI valide/prepare le vecteur landmarks (`prepare_landmarks`).
+4. L'UI appelle le modele (`model.predict(...)`).
+5. L'UI affiche prediction, confiance, FPS, overlays et sequence.
 
 ## 2) Lancer l'interface
 
-Depuis le dossier `src/interface`:
+Depuis `src/interface`:
 
 ```powershell
 python interface.py
 ```
 
-Si `hand_tracking.py` ou `model.py`/`model.pth` est absent, l'UI se lance quand meme en mode degrade.
+Comportement degrade:
 
-## 3) Dependances minimales
+- Si `model.py` ou `model.pth` est absent/invalide: l'UI se lance quand meme, prediction `?` a `0%`.
+- Si le tracker leve une erreur (ex: modele MediaPipe manquant), l'application ne peut pas demarrer.
+
+## 3) Dependances
 
 - Python 3.10+
 - torch
 - opencv-python
 - PySide6
+- mediapipe
+
+Installation minimale:
 
 ```powershell
-pip install torch opencv-python PySide6
+pip install torch opencv-python PySide6 mediapipe
 ```
 
-## 4) Contrat tracking
+Fichier de tracking attendu:
 
-L'UI tente automatiquement:
+- `hand_landmarker.task` dans `src/interface/` ou `src/detection/`
+
+## 4) Contrat tracker
+
+L'UI charge automatiquement:
 
 ```python
 from hand_tracking import HandTracker
 tracker = HandTracker()
 ```
 
-Le tracker doit exposer cette API:
+API requise du tracker:
 
-### API obligatoire
+1. `get_hand_data(frame: np.ndarray) -> dict`
+2. `draw_landmarks(frame: np.ndarray, raw_landmarks: Any) -> None`
+3. `close() -> None`
 
-`get_hand_data(frame) -> dict`
-
-Retour attendu:
+Format de retour attendu pour `get_hand_data`:
 
 ```python
 {
@@ -58,20 +68,21 @@ Retour attendu:
 }
 ```
 
-### Regles importantes
+Regles:
 
-- `landmarks` doit avoir exactement `INPUT_SIZE` valeurs (par defaut 63).
-- Si aucune main n'est detectee, renvoyer `None` pour `landmarks`.
+- `landmarks` doit contenir exactement `INPUT_SIZE` valeurs (63 par defaut).
+- Si aucune main n'est detectee: retourner `landmarks=None`, `bbox=None`, `raw_landmarks=None`.
 - `bbox` est optionnel mais recommande pour l'overlay.
-- Pour dessiner les landmarks natifs, exposer aussi:
-  - `self._drawing_utils`
-  - `self.hand_connections`
-  - `raw_landmarks` dans le retour.
 
 ## 5) Contrat modele
 
-L'UI charge `SignModel` depuis `model.py`.
-Le modele doit exposer `predict(...)`.
+L'UI instancie le modele depuis `model.py`:
+
+```python
+SignModel(input_size=63, num_classes=26)
+```
+
+Le modele doit exposer:
 
 ```python
 predict(landmark_vector: np.ndarray) -> InferenceResult | dict
@@ -82,32 +93,39 @@ Formats acceptes:
 1. `InferenceResult(label="A", confidence=0.92, hand_detected=True)`
 2. `{"label": "A", "confidence": 0.92, "hand_detected": True}`
 
-L'UI applique ensuite un seuil de confiance (`CONFIDENCE_THRESHOLD`).
+Regles de normalisation appliquees par l'UI:
 
-### Construction du modele
+- Si `hand_detected=False`: affichage `?`.
+- Si `confidence < CONFIDENCE_THRESHOLD`: affichage `?`.
+- Si `label` n'est pas dans `CLASS_NAMES`: affichage `?`.
 
-L'UI appelle:
+## 6) Mode sequence
 
-```python
-SignModel(input_size=63, num_classes=26)
-```
+Quand `sequence_mode=True`, l'UI accumule des lettres stables:
 
-## 6) Fichiers et constantes
+- Stabilite requise: `SEQUENCE_STABILITY_FRAMES = 8`
+- Cooldown apres ajout: `SEQUENCE_COOLDOWN_FRAMES = 6`
+- Texte affiche: concat de `current_sequence` (ou `-` si vide)
 
-- Poids par defaut: `model.pth` (dans le dossier interface)
-- Classes par defaut: `A..Z`
-- Taille entree par defaut: `INPUT_SIZE = 63`
-- Seuil par defaut: `CONFIDENCE_THRESHOLD = 0.6`
-- FPS max UI: `MAX_FPS = 30` (modifiable dans `interface_core.py`)
+## 7) Constantes par defaut
 
-## 7) Gestion des erreurs
+- `MODEL_PATH = "model.pth"`
+- `CLASS_NAMES = A..Z`
+- `INPUT_SIZE = 63`
+- `CONFIDENCE_THRESHOLD = 0.6`
+- `WEBCAM_INDEX = 0`
+- `MAX_FPS = 30`
+- `WEBCAM_MIRROR = True`
+- `BBOX_MARGIN = 16`
 
-- Si `landmarks` vaut `None`: l'UI affiche `?` avec `0%`.
-- Si la confiance est sous `CONFIDENCE_THRESHOLD`: l'UI affiche `?`.
-- Si le tracker est absent: pas de landmarks, pas de bbox, prediction a `?`.
-- Si le modele est absent ou echoue: prediction a `?` avec `0%`.
+## 8) Gestion des erreurs
 
-## 8) Raccourcis clavier UI
+- `landmarks is None` -> prediction `?`, confiance `0%`.
+- Mauvaise taille de vecteur landmarks -> frame ignoree, prediction `?`.
+- Erreur dans `model.predict(...)` -> prediction `?`, confiance `0%`.
+- Modele non charge -> prediction `?`, confiance `0%`.
+
+## 9) Raccourcis clavier
 
 - `L`: afficher/masquer landmarks
 - `B`: afficher/masquer bounding box

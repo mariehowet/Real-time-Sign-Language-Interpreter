@@ -4,3 +4,4 @@ data/
 *.tar.gz
 __pycache__/.DS_Store
 landmarks_dataset.csv
+__pycache__
