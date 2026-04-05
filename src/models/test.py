@@ -1,6 +1,5 @@
 
-import split_dataset as split_dataset  
-import dataset as dataset  
+import dataset as dataset
 
 # Tester un batch du train_loader
 for images, labels in dataset.train_loader:

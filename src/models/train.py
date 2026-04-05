@@ -44,8 +44,8 @@ for epoch in range(num_epochs):
 
     print(f"Epoch {epoch+1}/{num_epochs} "
           f"| Train Loss: {train_loss/len(dataset.train_loader):.3f} "
-          f"| Train Acc: {train_correct/len(dataset.train_dataset)*100:.1f}% "
-          f"| Val Acc: {val_correct/len(dataset.train_dataset)*100:.1f}%")
+          f"| Train Acc: {train_correct / len(dataset.train_dataset) * 100:.1f}% "
+          f"| Val Acc: {val_correct / len(dataset.train_dataset) * 100:.1f}%")
 
 # Sauvegarder le modèle
 torch.save(model.state_dict(), "model.pth")

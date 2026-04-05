@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
@@ -11,8 +10,8 @@ import numpy as np
 from mediapipe.tasks.python import BaseOptions
 from mediapipe.tasks.python import vision
 
+from src.config.config import Config
 
-DEFAULT_MODEL_NAME = "hand_landmarker.task"
 HAND_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 4),
     (0, 5), (5, 6), (6, 7), (7, 8),
@@ -22,6 +21,7 @@ HAND_CONNECTIONS = [
     (0, 17),
 ]
 
+MODEL_ASSET_PATH = str(Config.HAND_LANDMARKER)
 
 class HandTracker:
     """Extract hand landmarks from webcam frames using MediaPipe Tasks."""
@@ -35,32 +35,31 @@ class HandTracker:
         self.hand_connections = HAND_CONNECTIONS
         self._timestamp_ms = 0
 
-        resolved_model = self._resolve_model_path(model_asset_path)
         options = vision.HandLandmarkerOptions(
-            base_options=BaseOptions(model_asset_path=str(resolved_model)),
+            base_options=BaseOptions(model_asset_path=MODEL_ASSET_PATH),
             running_mode=vision.RunningMode.VIDEO,
             num_hands=num_hands,
         )
         self._landmarker = vision.HandLandmarker.create_from_options(options)
 
-    def _resolve_model_path(self, model_asset_path: Optional[str]) -> Path:
-        if model_asset_path is not None:
-            candidate = Path(model_asset_path)
-            if candidate.exists():
-                return candidate
-
-        local_candidate = Path(__file__).with_name(DEFAULT_MODEL_NAME)
-        if local_candidate.exists():
-            return local_candidate
-
-        detection_candidate = Path(__file__).resolve().parent.parent / "detection" / DEFAULT_MODEL_NAME
-        if detection_candidate.exists():
-            return detection_candidate
-
-        raise FileNotFoundError(
-            "Could not find hand_landmarker.task. Expected it in "
-            "src/interface/ or src/detection/, or pass model_asset_path explicitly."
-        )
+    # def _resolve_model_path(self, model_asset_path: Optional[str]) -> Path:
+    #     if model_asset_path is not None:
+    #         candidate = Path(model_asset_path)
+    #         if candidate.exists():
+    #             return candidate
+    #
+    #     local_candidate = Path(__file__).with_name(DEFAULT_MODEL_NAME)
+    #     if local_candidate.exists():
+    #         return local_candidate
+    #
+    #     detection_candidate = Path(__file__).resolve().parent.parent / "detection" / DEFAULT_MODEL_NAME
+    #     if detection_candidate.exists():
+    #         return detection_candidate
+    #
+    #     raise FileNotFoundError(
+    #         "Could not find hand_landmarker.task. Expected it in "
+    #         "src/interface/ or src/detection/, or pass model_asset_path explicitly."
+    #     )
 
     def _next_timestamp(self) -> int:
         # MediaPipe VIDEO mode requires strictly increasing timestamps.

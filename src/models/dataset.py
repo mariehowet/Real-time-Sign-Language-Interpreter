@@ -1,7 +1,7 @@
 import os
 from torchvision import datasets
 from torch.utils.data import DataLoader
-from preprocessing import train_transforms, val_test_transforms
+from src.dataset_config.preprocessing import train_transforms, val_test_transforms
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

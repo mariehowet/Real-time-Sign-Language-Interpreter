@@ -10,9 +10,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
-import numpy as np
-
-
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -28,8 +25,10 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 
+from src.config.config import Config
 
-MODEL_PATH = "model.pth"
+MODEL_PATH = str(Config.MODEL_LANDMARKER)
+
 INPUT_SIZE = 63
 CLASS_NAMES = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 BATCH_SIZE = 64

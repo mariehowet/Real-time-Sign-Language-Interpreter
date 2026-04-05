@@ -1,9 +1,7 @@
 """Entry point for the PySide6 sign-language interface."""
-
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
@@ -16,13 +14,11 @@ from interface_core import (
 )
 from interface_window import MainWindow
 
-
 def run_interface() -> None:
 	"""Run the Qt webcam application."""
-	model_path = Path(__file__).with_name(MODEL_PATH)
 	tracker = import_custom_tracker()
 
-	model = load_model(model_path=model_path, input_size=INPUT_SIZE, class_names=CLASS_NAMES)
+	model = load_model(model_path=MODEL_PATH, input_size=INPUT_SIZE, class_names=CLASS_NAMES)
 	if model is None:
 		print("Warning: UI started without model. Predictions will stay at '?' and 0%.")
 
