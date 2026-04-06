@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
+import sys
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import cv2
 
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from src.config.config import Config
-from pathlib import Path
 
 
 MODEL_PATH = str(Config.MODEL_LANDMARKER)
