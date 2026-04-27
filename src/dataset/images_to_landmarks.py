@@ -9,7 +9,7 @@ from mediapipe.tasks.python import BaseOptions, vision
 
 # Config
 BASE_DIR        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_PATH      = os.path.join(BASE_DIR, "hand_landmarker.task")
+MODEL_PATH = os.path.join(BASE_DIR, "assets", "models", "hand_landmarker.task")
 DATASET_PATH    = os.path.join(BASE_DIR, "data/splits/train")
 OUTPUT_CSV      = os.path.join(BASE_DIR, "landmarks_dataset.csv")
 
