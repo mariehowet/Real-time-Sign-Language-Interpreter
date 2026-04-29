@@ -21,7 +21,6 @@ VAL_RATIO  = 0.10
 TEST_RATIO = 0.20
 
 
-# ─── PIPELINE ──────────────────────────────────────────────
 def check_model():
     print("\n[CHECK] Modèle MediaPipe")
     if not os.path.exists(MODEL_PATH):
@@ -65,6 +64,5 @@ def main():
     print("\nPipeline terminé avec succès !")
 
 
-# ─── EXECUTION ─────────────────────────────────────────────
 if __name__ == "__main__":
     main()

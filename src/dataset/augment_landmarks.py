@@ -2,13 +2,9 @@ import os
 import numpy as np
 import random
 
-# ─── Config ─────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_PATH = os.path.join(BASE_DIR, "data")
 AUG_PER_SAMPLE = 5  # nombre d'augmentations par fichier
-
-
-# ─── Augmentations de base ─────────────────────────────
 
 def add_noise(landmarks, noise_level=0.01):
     return landmarks + np.random.normal(0, noise_level, landmarks.shape)
@@ -62,11 +58,6 @@ def augment_sequence(sequence):
 
 
 def augment_auto(data):
-    """
-    Détecte automatiquement :
-    - lettre (63,) → IGNORÉ
-    - mot (N,63) → AUGMENTÉ
-    """
     if len(data.shape) == 1:
         return None  # ❌ lettre → pas d'augmentation
 
@@ -77,7 +68,6 @@ def augment_auto(data):
         raise ValueError(f"Format inconnu: {data.shape}")
 
 
-# ─── Pipeline principal ─────────────────────────────────
 
 def augment_dataset(split="train"):
     split_path = os.path.join(DATA_PATH, split)
@@ -114,7 +104,6 @@ def augment_dataset(split="train"):
     print("\n✅ Augmentation terminée !")
 
 
-# ─── Lancement ─────────────────────────────────────────
 
 if __name__ == "__main__":
-    augment_dataset("train")  # ⚠️ uniquement train
+    augment_dataset("train")

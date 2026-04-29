@@ -42,25 +42,6 @@ class HandTracker:
         )
         self._landmarker = vision.HandLandmarker.create_from_options(options)
 
-    # def _resolve_model_path(self, model_asset_path: Optional[str]) -> Path:
-    #     if model_asset_path is not None:
-    #         candidate = Path(model_asset_path)
-    #         if candidate.exists():
-    #             return candidate
-    #
-    #     local_candidate = Path(__file__).with_name(DEFAULT_MODEL_NAME)
-    #     if local_candidate.exists():
-    #         return local_candidate
-    #
-    #     detection_candidate = Path(__file__).resolve().parent.parent / "detection" / DEFAULT_MODEL_NAME
-    #     if detection_candidate.exists():
-    #         return detection_candidate
-    #
-    #     raise FileNotFoundError(
-    #         "Could not find hand_landmarker.task. Expected it in "
-    #         "src/interface/ or src/detection/, or pass model_asset_path explicitly."
-    #     )
-
     def _next_timestamp(self) -> int:
         # MediaPipe VIDEO mode requires strictly increasing timestamps.
         self._timestamp_ms += 1

@@ -3,7 +3,6 @@ from mediapipe.tasks.python import vision, BaseOptions
 import cv2, time, os, csv
 import numpy as np
 
-# ─── CONFIG ───────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODEL_PATH = os.path.join(BASE_DIR, "assets", "models", "hand_landmarker.task")
 
@@ -18,7 +17,6 @@ recording = False
 sequence = []
 current_label = None
 
-# ─── LANDMARKER ───────────────────────────────────────────
 def callback(result, output_image, timestamp_ms):
     global latest_result
     latest_result = result
@@ -32,14 +30,12 @@ options = vision.HandLandmarkerOptions(
 
 landmarker = vision.HandLandmarker.create_from_options(options)
 
-# ─── UTILS ───────────────────────────────────────────────
 def extract_landmarks(result):
     if not result or not result.hand_landmarks:
         return None
     lm = result.hand_landmarks[0]
     return [coord for p in lm for coord in (p.x, p.y, p.z)]
 
-# ─── WEBCAM ──────────────────────────────────────────────
 cap = cv2.VideoCapture(0)
 
 print("R = start | S = stop | ESC = quit")

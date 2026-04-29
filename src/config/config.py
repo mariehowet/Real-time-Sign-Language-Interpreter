@@ -7,4 +7,8 @@ class Config:
 
     HAND_LANDMARKER = MODELS_DIR / "hand_landmarker.task"
     MODEL_CLASSIFIER = MODELS_DIR / "model.pth"
+    MODEL_WORD_LANDMARKER = MODELS_DIR / "landmarks_word_model.pth"
     MODEL_LANDMARKER = MODELS_DIR / "model_landmarks.pth"
+
+
+

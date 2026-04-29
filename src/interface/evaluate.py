@@ -1,9 +1,3 @@
-"""Offline evaluation utilities for sign-language recognition.
-
-This module evaluates a trained classifier on a test set, prints common
-classification metrics, and generates a confusion matrix figure.
-"""
-
 from __future__ import annotations
 
 from collections import Counter

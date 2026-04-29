@@ -1,5 +1,3 @@
-"""Core logic for real-time sign-language inference."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -17,11 +15,6 @@ if str(ROOT_DIR) not in sys.path:
 from src.config.config import Config
 
 
-MODEL_PATH = str(Config.MODEL_LANDMARKER)
-
-CLASS_NAMES = list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-CLASS_NAMES.insert(CLASS_NAMES.index("T"), "Space")
-INPUT_SIZE = 63
 CONFIDENCE_THRESHOLD = 0.6
 WEBCAM_INDEX = 0
 MAX_FPS = 30
@@ -33,49 +26,35 @@ BBOX_MARGIN = 16
 SEQUENCE_MODE = False
 SEQUENCE_STABILITY_FRAMES = 8
 SEQUENCE_COOLDOWN_FRAMES = 6
+SEQUENCE_LENGTH = 30
+
+MODE_CONFIGS = {
+    "Letter": {
+        "model_path": Config.MODEL_LANDMARKER,
+        "input_size": 63,
+        "class_names": (
+            lambda names: names.insert(names.index("T"), "Space") or names
+        )(list("ABCDEFGHIJKLMNOPQRSTUVWXYZ")),
+    },
+    "Word": {
+        "model_path": Config.MODEL_WORD_LANDMARKER,
+        "input_size": 1890,
+        "class_names": ["HELLO", "PLEASE", "SEE YOU LATER", "THANK YOU"],
+    },
+}
 
 
 @dataclass
 class InferenceResult:
     """Container for per-frame model output."""
-
     label: str = "?"
     confidence: float = 0.0
     hand_detected: bool = False
 
 
-def _normalize_external_prediction(
-    raw_prediction: Any,
-    class_names: Sequence[str],
-    confidence_threshold: float,
-) -> InferenceResult:
-    """Convert model outputs to the shared inference result."""
-    if isinstance(raw_prediction, InferenceResult):
-        prediction = raw_prediction
-    elif isinstance(raw_prediction, dict):
-        prediction = InferenceResult(
-            label=str(raw_prediction.get("label", "?")),
-            confidence=float(raw_prediction.get("confidence", 0.0)),
-            hand_detected=bool(raw_prediction.get("hand_detected", True)),
-        )
-    else:
-        raise TypeError("model.predict must return InferenceResult or dict")
-
-    if not prediction.hand_detected or prediction.confidence < confidence_threshold:
-        return InferenceResult(label="?", confidence=float(prediction.confidence), hand_detected=prediction.hand_detected)
-
-    label = prediction.label if prediction.label in class_names else "?"
-    return InferenceResult(
-        label=label,
-        confidence=float(prediction.confidence),
-        hand_detected=prediction.hand_detected,
-    )
-
-
 @dataclass
 class InterfaceState:
     """Mutable UI state for real-time interaction."""
-
     show_landmarks: bool = SHOW_LANDMARKS
     show_bounding_box: bool = SHOW_BOUNDING_BOX
     sequence_mode: bool = SEQUENCE_MODE
@@ -102,10 +81,41 @@ class InterfaceState:
         return "".join(self.current_sequence) or "-"
 
 
+def _normalize_external_prediction(
+    raw_prediction: Any,
+    class_names: Sequence[str],
+    confidence_threshold: float,
+) -> InferenceResult:
+    """Convert model outputs to the shared inference result."""
+    if isinstance(raw_prediction, InferenceResult):
+        prediction = raw_prediction
+    elif isinstance(raw_prediction, dict):
+        prediction = InferenceResult(
+            label=str(raw_prediction.get("label", "?")),
+            confidence=float(raw_prediction.get("confidence", 0.0)),
+            hand_detected=bool(raw_prediction.get("hand_detected", True)),
+        )
+    else:
+        raise TypeError("model.predict must return InferenceResult or dict")
+
+    if not prediction.hand_detected or prediction.confidence < confidence_threshold:
+        return InferenceResult(
+            label="?",
+            confidence=float(prediction.confidence),
+            hand_detected=prediction.hand_detected,
+        )
+
+    label = prediction.label if prediction.label in class_names else "?"
+    return InferenceResult(
+        label=label,
+        confidence=float(prediction.confidence),
+        hand_detected=prediction.hand_detected,
+    )
+
+
 def import_custom_tracker() -> Any:
     """Import and instantiate the project hand tracker."""
     from src.detection.hand_tracking import HandTracker  # type: ignore
-
     return HandTracker()
 
 
@@ -114,28 +124,30 @@ def get_hand_data(tracker: Any, frame: np.ndarray) -> Dict[str, Any]:
     return tracker.get_hand_data(frame)
 
 
-def build_model(input_size: int, num_classes: int) -> Optional[Any]:
+def build_model(input_size: int, num_classes: int, mode: str) -> Optional[Any]:
     """Instantiate the project model when available."""
     try:
         from src.detection.sign_model import SignModel  # type: ignore
     except ImportError:
-        print("Warning: model.py unavailable. Running without predictions.")
+        print("Warning: sign_model.py unavailable. Running without predictions.")
         return None
-    return SignModel(input_size=input_size, num_classes=num_classes)
+    return SignModel(input_size=input_size, num_classes=num_classes, mode=mode)
 
 
 def load_model(
-    model_path: Path | str, input_size: int, class_names: Sequence[str]
+    model_path: Path | str,
+    input_size: int,
+    class_names: Sequence[str],
+    mode: str,
 ) -> Optional[Any]:
     """Load the trained model when available."""
     model_path = Path(model_path)
-    model = build_model(input_size=input_size, num_classes=len(class_names))
+    model = build_model(input_size=input_size, num_classes=len(class_names), mode=mode)
     if model is None:
         return None
     if not model_path.exists():
         print(f"Warning: model file not found at {model_path}. Running without predictions.")
         return None
-
     try:
         model.load(model_path)
     except Exception as error:
@@ -144,18 +156,38 @@ def load_model(
     return model
 
 
-def prepare_landmarks(landmarks: Any, input_size: int) -> Optional[np.ndarray]:
-    """Validate and reshape tracker landmarks for the model."""
+def prepare_landmarks(landmarks: Any) -> Optional[np.ndarray]:
+    """Valide et reshape les landmarks d'une seule frame -> 63 features
+    Mode Word accumule ces vecteurs frame par frame dans MainWindow
+    """
     if landmarks is None:
         return None
     array = np.asarray(landmarks, dtype=np.float32).reshape(-1)
-    if array.size != input_size:
+    if array.size != 63:
         print(
-            f"Warning: expected {input_size} features but received {array.size}. "
+            f"Warning: expected 63 features (21 landmarks × 3) but received {array.size}. "
             "Skipping frame."
         )
         return None
     return array
+
+
+def prepare_sequence(
+    frame_buffer: List[np.ndarray],
+    sequence_length: int = SEQUENCE_LENGTH,
+) -> Optional[np.ndarray]:
+    """Assemble un buffer de frames en vecteur 1890 pour SequenceClassifier.
+    """
+    if len(frame_buffer) < sequence_length:
+        return None
+    sequence = np.array(frame_buffer[-sequence_length:], dtype=np.float32).flatten()
+    if sequence.size != sequence_length * 63:
+        print(
+            f"Warning: séquence malformée — attendu {sequence_length * 63} features, "
+            f"reçu {sequence.size}."
+        )
+        return None
+    return sequence
 
 
 def predict_sign(
@@ -164,12 +196,10 @@ def predict_sign(
     class_names: Sequence[str],
     confidence_threshold: float,
 ) -> InferenceResult:
-    """Get a prediction from the model layer and normalize it for UI display."""
     if landmark_vector is None:
         return InferenceResult(label="?", confidence=0.0, hand_detected=False)
     if model is None:
         return InferenceResult(label="?", confidence=0.0, hand_detected=True)
-
     try:
         raw_prediction = model.predict(landmark_vector)
     except Exception as error:
@@ -186,23 +216,18 @@ def update_sequence_state(state: InterfaceState, inference: InferenceResult) -> 
     """Update the sequence buffer from the current frame prediction."""
     if not state.sequence_mode:
         return
-
     if state.cooldown_frames_left > 0:
         state.cooldown_frames_left -= 1
-
     if not inference.hand_detected or inference.label == "?":
         state.reset_candidate()
         return
-
     if state.cooldown_frames_left > 0:
         return
-
     if state.candidate_label == inference.label:
         state.candidate_frames += 1
     else:
         state.candidate_label = inference.label
         state.candidate_frames = 1
-
     if state.candidate_frames >= SEQUENCE_STABILITY_FRAMES:
         state.current_sequence.append(inference.label)
         state.cooldown_frames_left = SEQUENCE_COOLDOWN_FRAMES
@@ -218,12 +243,10 @@ def draw_bbox(
     height, width = frame.shape[:2]
     x_min, y_min, x_max, y_max = bbox
     padding = max(0, int(margin))
-
     x_min_out = max(0, x_min - padding)
     y_min_out = max(0, y_min - padding)
     x_max_out = min(width - 1, x_max + padding)
     y_max_out = min(height - 1, y_max + padding)
-
     cv2.rectangle(frame, (x_min_out, y_min_out), (x_max_out, y_max_out), (0, 255, 0), 2)
 
 
